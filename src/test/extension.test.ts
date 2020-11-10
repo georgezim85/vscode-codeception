@@ -15,6 +15,10 @@ function timeout(seconds: number, callback: any) {
     });
 }
 
+function delay(ms: number) {
+    return new Promise( resolve => setTimeout(resolve, ms) );
+}
+
 describe('VSCode Codeception Test Suite', () => {
     const configuration = vscode.workspace.getConfiguration('vscode-codeception');
     let workspaceRootPath = vscode.workspace.rootPath || '';
@@ -41,6 +45,7 @@ describe('VSCode Codeception Test Suite', () => {
     it('Can test all files', async () => {
         const document = await vscode.workspace.openTextDocument(pathJoin(workspaceRootPath, 'tests', 'unit', 'SampleTest.php'));
         await vscode.window.showTextDocument(document);
+        await delay(1000); // Avoids "command not found" error at first test
         await vscode.commands.executeCommand('vscode-codeception.run-all');
 
         await timeout(waitToAssertInSeconds, () => {
