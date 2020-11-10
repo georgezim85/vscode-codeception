@@ -38,6 +38,10 @@
             {
                 "command": "vscode-codeception.run-method",
                 "title": "VSCode Codeception: Run Method"
+            },
+            {
+                "command": "vscode-codeception.run-file-in-docker",
+                "title": "VSCode Codeception: Run File in docker container"
             }
         ],
         "keybindings": [

@@ -37,6 +37,13 @@ export function activate(context: vscode.ExtensionContext) {
             execute(command);
         });
     }));
+
+    // Run all tests in the file
+    context.subscriptions.push(vscode.commands.registerCommand('vscode-codeception.run-file-in-docker', async () => {
+        executeCommand(Dispatcher({
+            runFileInDocker: true
+        }));
+    }));
 }
 
 // this method is called when your extension is deactivated
@@ -54,7 +61,7 @@ export function _getLastCommand(): any {
 /**
  * Run a command.
  *
- * @param {any} command 
+ * @param {any} command
  */
 async function executeCommand(command: any) {
     lastCommand = command;
@@ -65,7 +72,7 @@ async function executeCommand(command: any) {
 /**
  * Run a command string.
  *
- * @param string command 
+ * @param string command
  */
 async function execute(command: string) {
     if (!vscode.window.activeTextEditor) {
@@ -73,7 +80,7 @@ async function execute(command: string) {
     }
 
     let activeTerminal: any = null;
-    
+
     if (vscode.window.activeTerminal) {
         // Grab the current active terminal to close it later
         activeTerminal = vscode.window.activeTerminal;

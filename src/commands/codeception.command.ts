@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { join as joinPath } from 'path';
-import { CommandOptions } from '../interfaces';
+import { CommandOptions, PathToService } from '../interfaces';
 import { SymbolNode, ScopeFinder } from '../helpers';
 
 export class CodeceptionCommand {
@@ -10,6 +10,7 @@ export class CodeceptionCommand {
     private runAll: boolean;
     private runFile: boolean;
     private runMethod: boolean;
+    private runFileInDocker: boolean;
 
     public _methodName: string = '';
 
@@ -21,6 +22,7 @@ export class CodeceptionCommand {
         this.runAll = options.runAll || false;
         this.runFile = options.runFile || false;
         this.runMethod = options.runMethod || false;
+        this.runFileInDocker = options.runFileInDocker || false;
 
         let editor = vscode.window.activeTextEditor;
 
@@ -56,20 +58,24 @@ export class CodeceptionCommand {
             this.lastOutput = `run ${this.parseFile}:`;
         }
 
+        if (this.runFileInDocker) {
+            this.lastOutput = `run ${this.parseFile}${this.suffix}`;
+        }
+
         return this.lastOutput;
     }
 
     /**
      * Parse the current file path
      * and return the appropriate command
-     * 
+     *
      * @return string
      */
     get parseFile(): string {
         if (vscode.window.activeTextEditor) {
             // get the currently selected file
             const { fileName } = vscode.window.activeTextEditor.document;
-            
+
             // split the file path by the tests directory
             const splitFilePath = fileName.split('/tests/').pop();
 
@@ -92,7 +98,7 @@ export class CodeceptionCommand {
 
     /**
      * Try to estimate the function name
-     * 
+     *
      * @return Promise<string>
      */
     cursorMethodName(): Promise<string> {
@@ -101,13 +107,13 @@ export class CodeceptionCommand {
         return new Promise((resolve, reject) => {
             if (editor && this._scopeFinder) {
                 const pos: vscode.Position = editor.selection.start;
-    
+
                 if (!pos) {
                     return '';
                 }
-    
+
                 let node: SymbolNode | null;
-    
+
                 setTimeout(async (token: vscode.CancellationToken) => {
                     if (token.isCancellationRequested) {
                         return;
@@ -116,11 +122,11 @@ export class CodeceptionCommand {
                         return '';
                     }
                     let node: SymbolNode | null;
-    
+
                     try {
                         if (this._scopeFinder) {
                             node = await this._scopeFinder.getScopeNode(pos);
-    
+
                             if (node) {
                                 resolve(node.getMethodName)
                             }
@@ -154,8 +160,34 @@ export class CodeceptionCommand {
      * @return string
      */
     get binary(): string {
+        let path = '';
         if (this.extConfiguration.get('codeceptBinary')) {
             return this.extConfiguration.get('codeceptBinary') || '';
+        }
+        // @TODO clean this up
+        if (vscode.window.activeTextEditor) {
+            const { fileName } = vscode.window.activeTextEditor.document;
+
+            // split the file path by the tests directory
+            const splitFilePath = fileName.split(vscode.workspace.rootPath + '/' || '').pop();
+
+            if (splitFilePath) {
+                path = splitFilePath.split('/')[0];
+            }
+        }
+
+        let appDirectory = this.parseFile.split('/')[0];
+        if (this.extConfiguration.get('pathToService.' + path + '.serviceName')) {
+            let serviceName = this.extConfiguration.get('pathToService.' + path + '.serviceName') || '';
+
+            let workDir = this.extConfiguration.get('pathToService.' + path + '.workDir') || '';
+            if (workDir) {
+                workDir = '-w ' + workDir + ' ';
+                console.log('workDir: ', workDir);
+            }
+
+            const dockerComposePrefix = 'docker-compose exec -T ' + workDir + serviceName;
+            return dockerComposePrefix + ' codecept';
         }
 
         return this._normalizePath(joinPath(vscode.workspace.rootPath || '', 'vendor', 'bin', 'codecept'));
@@ -165,7 +197,7 @@ export class CodeceptionCommand {
      * Normalize a path.
      *
      * @param  {string} path
-     * @return {string} 
+     * @return {string}
      */
     protected _normalizePath(path: string) {
         return path
